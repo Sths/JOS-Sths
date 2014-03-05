@@ -12,7 +12,7 @@ static void cons_intr(int (*proc)(void));
 static void cons_putc(int c);
 
 // Sths code begin
-extern int fgcolor;
+ extern int fgcolor;
 extern int bgcolor;
 // Sths code end
 
