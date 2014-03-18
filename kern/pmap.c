@@ -99,7 +99,22 @@ boot_alloc(uint32_t n)
 	//
 	// LAB 2: Your code here.
 
-	return NULL;
+	// !! ----- Sths Code Start ---- !!
+
+	cprintf("boot_alloc(n = %x\n", n);
+	cprintf("--- nextfree = ", nextfree);
+	cprintf("--- new nextfree = ", ROUNDasdadsUP((char *) (nextfree + n), PGSIZE));
+	if (n != 0) {
+		char * pos = nextfree;
+		nextfree = ROUNDUP((char *) (nextfree + n), PGSIZE);
+		return pos;
+	}
+	else {
+		return nextfree;
+	}
+	//	return NULL;
+
+	// !! ----- Sths Code End ----- !!
 }
 
 // Set up a two-level page table:
