@@ -101,9 +101,9 @@ boot_alloc(uint32_t n)
 
 	// !! ----- Sths Code Start ---- !!
 
-	cprintf("boot_alloc(n = %x\n", n);
-	cprintf("--- nextfree = %x\n", nextfree);
-	cprintf("--- new nextfree = %x\n", ROUNDUP((char *) (nextfree + n), PGSIZE));
+	//cprintf("boot_alloc(n = %x\n", n);
+	//cprintf("--- nextfree = %x\n", nextfree);
+	//cprintf("--- new nextfree = %x\n", ROUNDUP((char *) (nextfree + n), PGSIZE));
 	
 	char * pos = nextfree;
 	nextfree = ROUNDUP((char *) (nextfree + n), PGSIZE);
@@ -411,8 +411,8 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 	while (_va != va + size) {
 		pte_t * tmp = pgdir_walk(pgdir, (void *) _va, true);
 		* tmp = _pa | PTE_P | perm;
-		_va += size;
-		_pa += size;
+		_va += PGSIZE;
+		_pa += PGSIZE;
 	}
 	// !! ----- Sths Code End ----- !!
 }
@@ -473,8 +473,8 @@ page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 	pte_t * tmp = pgdir_walk(pgdir, va, 0);
 	if (!tmp || !(* tmp & PTE_P)) return NULL;
 	if (pte_store) * pte_store = tmp;
-	cprintf("pte addr = %x, and its content = %x\n", tmp, * tmp);
-	cprintf("PTE_ADDR = %x\n", PTE_ADDR(* tmp));
+	//cprintf("pte addr = %x, and its content = %x\n", tmp, * tmp);
+	//cprintf("PTE_ADDR = %x\n", PTE_ADDR(* tmp));
 	return pa2page(PTE_ADDR(* tmp));
 	// !! ----- Sths Code End ----- !! 
 }
@@ -679,8 +679,10 @@ check_kern_pgdir(void)
 
 	// check pages array
 	n = ROUNDUP(npages*sizeof(struct PageInfo), PGSIZE);
-	for (i = 0; i < n; i += PGSIZE)
+	for (i = 0; i < n; i += PGSIZE) {
+		//cprintf("%d %x %x\n", i, check_va2pa(pgdir, UPAGES + i), PADDR(pages) + i);
 		assert(check_va2pa(pgdir, UPAGES + i) == PADDR(pages) + i);
+	}
 
 
 	// check phys mem
