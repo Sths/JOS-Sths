@@ -358,28 +358,25 @@ load_icode(struct Env *e, uint8_t *binary, size_t size)
 	// LAB 3: Your code here.
 
 	// !! ----- Sths Code Start ----- !! 
-	cprintf("spot 1\n");
 	struct Elf * elf = (struct Elf *) binary;
-if (elf ->e_magic != ELF_MAGIC) {
-panic("error elf magic number\n");
-}
-struct Proghdr *ph , *eph;
-ph = (struct Proghdr *) (( uint8_t *) elf + elf ->e_phoff);
-eph = ph + elf ->e_phnum;
-	cprintf("spot 2\n");
+	if (elf->e_magic != ELF_MAGIC) panic("load_icode: error elf magic number.\n");
+
+	struct Proghdr *ph , *eph;
+	ph = (struct Proghdr *) ((uint8_t *) elf + elf->e_phoff);
+	eph = ph + elf ->e_phnum;
+
 	lcr3(PADDR(e->env_pgdir));
 	for (; ph < eph; ph++) {
-		cprintf("!!!");
 		if (ph ->p_type == ELF_PROG_LOAD) {
-			region_alloc(e, (void *)ph ->p_va , ph ->p_memsz);
-			memcpy (( void *)ph ->p_va , binary + ph ->p_offset , ph ->p_filesz);
-			memset (( void *)(ph ->p_va) + ph ->p_filesz , 0, ph ->p_memsz - ph -> p_filesz);
+			region_alloc(e, (void *) ph->p_va, ph->p_memsz);
+			memcpy((void *) ph->p_va, binary + ph->p_offset , ph->p_filesz);
+			memset(((void *) ph->p_va) + ph->p_filesz, 0, ph->p_memsz - ph->p_filesz);
 		}
 	}
-	e->env_tf.tf_eip = elf ->e_entry;
+	e->env_tf.tf_eip = elf->e_entry;
 	lcr3(PADDR(kern_pgdir));
 	// !! ----- Sths Code End ----- !!
-cprintf("spot 3\n");
+
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
 
@@ -401,7 +398,6 @@ env_create(uint8_t *binary, size_t size, enum EnvType type)
 	// LAB 3: Your code here.
 
 	// !! ----- Sths Code Start ----- !! 
-
 	struct Env * e;
 	int tmp = env_alloc(&e, 0);
 	if (tmp < 0) panic("env_create: cannot allocate environment.\n");
