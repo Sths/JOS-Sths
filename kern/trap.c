@@ -73,6 +73,21 @@ trap_init(void)
 
 	// LAB 3: Your code here.
 
+	// !! ----- Sths Code Start ----- !! 
+	extern uint32_t vectors[];
+	
+	int i;
+	for (i = 0; i != 20; i++) {
+		if(i == T_BRKPT) 
+			SETGATE(idt[i], 0, GD_KT , vectors[i], 3)
+		else
+			SETGATE(idt[i], 0, GD_KT , vectors[i], 0);
+	}
+	
+	extern void vec48();
+	SETGATE(idt [48], 0, GD_KT , vec48 , 3);
+	// !! ----- Sths Code End ----- !!
+
 	// Per-CPU setup 
 	trap_init_percpu();
 }
@@ -174,6 +189,31 @@ trap_dispatch(struct Trapframe *tf)
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
 
+	// !! ----- Sths Code Start ----- !! 
+	if (tf->tf_trapno == T_PGFLT) {
+		page_fault_handler(tf);
+		return;
+	}
+	// !! ----- Sths Code End ----- !!
+
+	// !! ----- Sths Code Start ----- !! 
+	if (tf->tf_trapno == T_BRKPT) {
+		monitor(tf);
+		return;
+	}
+	// !! ----- Sths Code End ----- !!
+
+	// !! ----- Sths Code Start ----- !! 
+	if (tf->tf_trapno == T_SYSCALL) {
+		int tmp = syscall(tf->tf_regs.reg_eax, tf->tf_regs.reg_edx , tf->tf_regs.reg_ecx, tf->tf_regs.reg_ebx , tf->tf_regs.reg_edi, tf->tf_regs.reg_esi);
+		if (tmp < 0)
+			panic("trap_dispatch: %e.\n", tmp);
+		else
+			tf->tf_regs.reg_eax = tmp; 
+		return;
+	}
+	// !! ----- Sths Code End ----- !!
+
 	// Handle spurious interrupts
 	// The hardware sometimes raises these because of noise on the
 	// IRQ line or other reasons. We don't care.
@@ -268,6 +308,10 @@ page_fault_handler(struct Trapframe *tf)
 	// Handle kernel-mode page faults.
 
 	// LAB 3: Your code here.
+
+	// !! ----- Sths Code Start ----- !! 
+	if ((tf->tf_cs & 3) == 0) panic(" page_fault_handler : kernel page fault.\n");
+	// !! ----- Sths Code End ----- !!
 
 	// We've already handled kernel-mode exceptions, so if we get here,
 	// the page fault happened in user mode.

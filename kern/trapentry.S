@@ -42,15 +42,74 @@
 	pushl $(num);							\
 	jmp _alltraps
 
+#define TRAPHANDLER_SP(name, num)	\
+.text;	\
+	.globl name;	\
+	.type name, @function;	\
+	.align 2;	\
+name:	\
+	pushl $(num);	\
+	jmp _alltraps;	\
+.data;	\
+	.long name
+
+#define TRAPHANDLER_SP_NOEC(name, num)	\
+.text;	\
+	.globl name;	\
+	.type name, @function;	\
+	.align 2;	\
+name:	\
+	pushl $0;	\
+	pushl $(num);	\
+	jmp _alltraps;	\
+.data;	\
+	.long name
+
+#define TRAPHANDLER_SP_NULL()	\
+.data;	\
+	.long 0
+
+.data
+.align 2
+.globl vectors
+vectors:
 .text
 
 /*
  * Lab 3: Your code here for generating entry points for the different traps.
  */
-
-
+	TRAPHANDLER_SP_NOEC(vec0 , T_DIVIDE)
+	TRAPHANDLER_SP_NOEC(vec1 , T_DEBUG)
+	TRAPHANDLER_SP_NOEC(vec2 , T_NMI)
+	TRAPHANDLER_SP_NOEC(vec3 , T_BRKPT)
+	TRAPHANDLER_SP_NOEC(vec4 , T_OFLOW)
+	TRAPHANDLER_SP_NULL()
+	TRAPHANDLER_SP_NOEC(vec6 , T_BOUND)
+	TRAPHANDLER_SP_NOEC(vec7 , T_DEVICE)
+	TRAPHANDLER_SP(vec8 , T_DBLFLT)
+	TRAPHANDLER_SP_NULL()
+	TRAPHANDLER_SP(vec10 , T_TSS)
+	TRAPHANDLER_SP(vec11 , T_SEGNP)
+	TRAPHANDLER_SP(vec12 , T_STACK)
+	TRAPHANDLER_SP(vec13 , T_GPFLT)
+	TRAPHANDLER_SP(vec14 , T_PGFLT)
+	TRAPHANDLER_SP_NULL()
+	TRAPHANDLER_SP_NOEC(vec16 , T_FPERR)
+	TRAPHANDLER_SP(vec17 , T_ALIGN)
+	TRAPHANDLER_SP_NOEC(vec18 , T_MCHK)
+	TRAPHANDLER_SP_NOEC(vec19 , T_SIMDERR)
+	TRAPHANDLER_SP_NOEC(vec48 , T_SYSCALL)
 
 /*
  * Lab 3: Your code here for _alltraps
  */
 
+_alltraps:
+	pushl %ds
+	pushl %es
+	pushal
+	movl $GD_KD , %eax
+	movw %ax , %ds
+	movw %ax , %es
+	pushl %esp
+	call trap
