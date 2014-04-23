@@ -29,7 +29,22 @@ sched_yield(void)
 	// below to halt the cpu.
 
 	// LAB 4: Your code here.
-
+	int now_env , i;
+	if (curenv) {
+	// thiscpu -> cpu_env
+	now_env = (ENVX(curenv ->env_id) + 1) % NENV;
+	} else {
+	now_env = 0;
+	}
+	for (i = 0; i < NENV; i++, now_env = (now_env + 1) % NENV) {
+	if (envs[now_env ]. env_status == ENV_RUNNABLE) {
+	// cprintf ("I am CPU %d , I am in sched yield , I find ENV %d\n", 	thiscpu ->cpu_id , now_env );
+	env_run (& envs[now_env ]);
+	}
+	}
+	if (curenv && curenv ->env_status == ENV_RUNNING) {
+	env_run(curenv);
+	}
 	// sched_halt never returns
 	sched_halt();
 }
