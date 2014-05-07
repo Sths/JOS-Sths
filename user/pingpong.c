@@ -10,11 +10,13 @@ umain(int argc, char **argv)
 
 	if ((who = fork()) != 0) {
 		// get the ball rolling
+		sys_yield();
 		cprintf("send 0 from %x to %x\n", sys_getenvid(), who);
 		ipc_send(who, 0, 0, 0);
 	}
 
 	while (1) {
+		//cprintf("%x start waiting.", sys_getenvid());
 		uint32_t i = ipc_recv(&who, 0, 0);
 		cprintf("%x got %d from %x\n", sys_getenvid(), i, who);
 		if (i == 10)

@@ -86,6 +86,19 @@ trap_init(void)
 	
 	extern void vec48();
 	SETGATE(idt [48], 0, GD_KT , vec48 , 3);
+	
+	extern void vec32();
+	extern void vec33();
+	extern void vec36();
+	extern void vec39();
+	extern void vec46();
+	extern void vec51();
+	SETGATE(idt[IRQ_OFFSET + IRQ_TIMER], 0, GD_KT , vec32 , 0);
+	SETGATE(idt[IRQ_OFFSET + IRQ_KBD], 0, GD_KT , vec33 , 0);
+	SETGATE(idt[IRQ_OFFSET + IRQ_SERIAL], 0, GD_KT , vec36 , 0);
+	SETGATE(idt[IRQ_OFFSET + IRQ_SPURIOUS], 0, GD_KT , vec39 , 0);
+	SETGATE(idt[IRQ_OFFSET + IRQ_IDE], 0, GD_KT , vec46 , 0);
+	SETGATE(idt[IRQ_OFFSET + IRQ_ERROR], 0, GD_KT , vec51 , 0);
 	// !! ----- Sths Code End ----- !!
 
 	// Per-CPU setup 
@@ -213,12 +226,19 @@ trap_dispatch(struct Trapframe *tf)
 	}
 	// !! ----- Sths Code End ----- !!
 
+	if (tf ->tf_trapno == IRQ_OFFSET + IRQ_TIMER) {
+		lapic_eoi ();
+		sched_yield ();
+		return;
+	}
+
+
 	// !! ----- Sths Code Start ----- !! 
 	if (tf->tf_trapno == T_SYSCALL) {
 		int tmp = syscall(tf->tf_regs.reg_eax, tf->tf_regs.reg_edx , tf->tf_regs.reg_ecx, tf->tf_regs.reg_ebx , tf->tf_regs.reg_edi, tf->tf_regs.reg_esi);
-		if (tmp < 0)
-			panic("trap_dispatch: %e.\n", tmp);
-		else
+		//if (tmp < 0)
+		//	panic("trap_dispatch: %e.\n", tmp);
+		//else
 			tf->tf_regs.reg_eax = tmp; 
 		return;
 	}
@@ -236,6 +256,11 @@ trap_dispatch(struct Trapframe *tf)
 	// Handle clock interrupts. Don't forget to acknowledge the
 	// interrupt using lapic_eoi() before calling the scheduler!
 	// LAB 4: Your code here.
+	if (tf->tf_trapno == IRQ_OFFSET + IRQ_TIMER) {
+		lapic_eoi();
+		sched_yield();
+		return;
+	}
 
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
@@ -273,6 +298,7 @@ trap(struct Trapframe *tf)
 		// Acquire the big kernel lock before doing any
 		// serious kernel work.
 		// LAB 4: Your code here.
+		lock_kernel();
 		assert(curenv);
 
 		// Garbage collect if current enviroment is a zombie
@@ -355,6 +381,29 @@ page_fault_handler(struct Trapframe *tf)
 	//   (the 'tf' variable points at 'curenv->env_tf').
 
 	// LAB 4: Your code here.
+
+	if (curenv -> env_pgfault_upcall != NULL) {
+		// exist env 's page fault upcall
+		struct UTrapframe * ut;
+		if (tf ->tf_esp >= UXSTACKTOP - PGSIZE && tf ->tf_esp <= UXSTACKTOP - 1) {
+			// already in user exception stack , should first push an empty 32- bit word
+			ut = (struct UTrapframe *)(( void *)tf ->tf_esp - sizeof(struct	UTrapframe) - 4);
+			user_mem_assert(curenv , (void *)ut , sizeof(struct UTrapframe) + 4, PTE_U | PTE_W);
+		} else {
+			// it 's the first time in user exception stack
+			ut = (struct UTrapframe *)(UXSTACKTOP - sizeof(struct UTrapframe));
+			user_mem_assert(curenv , (void *)ut , sizeof(struct UTrapframe), PTE_U | PTE_W);
+		}
+		ut ->utf_esp = tf ->tf_esp;
+		ut ->utf_eflags = tf ->tf_eflags;
+		ut ->utf_eip = tf ->tf_eip;
+		ut ->utf_regs = tf ->tf_regs;
+		ut ->utf_err = tf ->tf_err;
+		ut ->utf_fault_va = fault_va;
+		curenv ->env_tf.tf_eip = (uint32_t)curenv -> env_pgfault_upcall ;
+		curenv ->env_tf.tf_esp = (uint32_t)ut;
+		env_run(curenv);
+	}
 
 	// Destroy the environment that caused the fault.
 	cprintf("[%08x] user fault va %08x ip %08x\n",
