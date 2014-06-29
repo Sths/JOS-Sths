@@ -120,6 +120,17 @@ env_init(void)
 	// Set up envs array
 	// LAB 3: Your code here.
 
+	// !! ----- Sths Code Start ----- !! 
+	env_free_list = NULL;
+	int index;
+	for (index = NENV - 1; index >= 0; index --) {
+		envs[index].env_id = 0;
+		envs[index].env_status = ENV_FREE;
+		envs[index].env_link = env_free_list;
+		env_free_list = &envs[index];
+	}
+	// !! ----- Sths Code End ----- !!
+	
 	// Per-CPU part of the initialization
 	env_init_percpu();
 }
@@ -164,7 +175,6 @@ env_setup_vm(struct Env *e)
 	// Allocate a page for the page directory
 	if (!(p = page_alloc(ALLOC_ZERO)))
 		return -E_NO_MEM;
-
 	// Now, set e->env_pgdir and initialize the page directory.
 	//
 	// Hint:
@@ -182,6 +192,13 @@ env_setup_vm(struct Env *e)
 	//    - The functions in kern/pmap.h are handy.
 
 	// LAB 3: Your code here.
+
+	// !! ----- Sths Code Start ----- !! 
+	e->env_pgdir = (pde_t *) page2kva(p);
+	memcpy(e->env_pgdir, kern_pgdir, PGSIZE);
+	memset(e->env_pgdir, 0, PDX(UTOP) * sizeof(pde_t));
+	p->pp_ref ++;
+	// !! ----- Sths Code End ----- !!
 
 	// UVPT maps the env's own page table read-only.
 	// Permissions: kernel R, user R
@@ -243,6 +260,7 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 	e->env_tf.tf_ss = GD_UD | 3;
 	e->env_tf.tf_esp = USTACKTOP;
 	e->env_tf.tf_cs = GD_UT | 3;
+	e->env_tf.tf_eflags |= FL_IF;
 	// You will set e->env_tf.tf_eip later.
 
 	// Enable interrupts while in user mode.
@@ -279,6 +297,22 @@ region_alloc(struct Env *e, void *va, size_t len)
 	//   'va' and 'len' values that are not page-aligned.
 	//   You should round va down, and round (va + len) up.
 	//   (Watch out for corner-cases!)
+
+	// !! ----- Sths Code Start ----- !! 
+	uint32_t lowerBound = (uint32_t) ROUNDDOWN(va, PGSIZE);
+	uint32_t upperBound = (uint32_t) ROUNDUP(va + len, PGSIZE);
+	while (lowerBound != upperBound) {
+		struct PageInfo * pg = page_alloc(1);
+		if (pg == NULL) {
+			panic("region_alloc: cannot alloc page.\n");
+		}
+		else {
+			int tmp = page_insert(e->env_pgdir, pg, (void *)lowerBound, PTE_U | PTE_W);
+			if (tmp != 0) panic("rigion_alloc: %e.\n", tmp);
+		}
+		lowerBound += PGSIZE;
+	}
+	// !! ----- Sths Code End ----- !!
 }
 
 //
@@ -336,10 +370,32 @@ load_icode(struct Env *e, uint8_t *binary, size_t size)
 
 	// LAB 3: Your code here.
 
+	// !! ----- Sths Code Start ----- !! 
+	struct Elf * elf = (struct Elf *) binary;
+	if (elf->e_magic != ELF_MAGIC) panic("load_icode: error elf magic number.\n");
+
+	struct Proghdr *ph , *eph;
+	ph = (struct Proghdr *) ((uint8_t *) elf + elf->e_phoff);
+	eph = ph + elf ->e_phnum;
+
+	lcr3(PADDR(e->env_pgdir));
+	for (; ph < eph; ph++) {
+		if (ph ->p_type == ELF_PROG_LOAD) {
+			region_alloc(e, (void *) ph->p_va, ph->p_memsz);
+			memcpy((void *) ph->p_va, binary + ph->p_offset , ph->p_filesz);
+			memset(((void *) ph->p_va) + ph->p_filesz, 0, ph->p_memsz - ph->p_filesz);
+		}
+	}
+	e->env_tf.tf_eip = elf->e_entry;
+	lcr3(PADDR(kern_pgdir));
+	// !! ----- Sths Code End ----- !!
+
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
 
 	// LAB 3: Your code here.
+	region_alloc(e, (void *)(USTACKTOP - PGSIZE), PGSIZE);
+	return;
 }
 
 //
@@ -353,6 +409,15 @@ void
 env_create(uint8_t *binary, size_t size, enum EnvType type)
 {
 	// LAB 3: Your code here.
+
+	// !! ----- Sths Code Start ----- !! 
+	struct Env * e;
+	int tmp = env_alloc(&e, 0);
+	if (tmp < 0) panic("env_create: cannot allocate environment.\n");
+	load_icode(e, binary, size);
+	e->env_type = type;
+	return;
+	// !! ----- Sths Code End ----- !!
 
 	// If this is the file server (type == ENV_TYPE_FS) give it I/O privileges.
 	// LAB 5: Your code here.
@@ -486,6 +551,23 @@ env_run(struct Env *e)
 
 	// LAB 3: Your code here.
 
+	// !! ----- Sths Code Start ----- !! 
+	if (curenv != NULL) {
+		if (curenv->env_status == ENV_RUNNING) {
+			curenv->env_status = ENV_RUNNABLE;
+		}
+	}
+	curenv = e;
+	curenv->env_status = ENV_RUNNING;
+	curenv->env_runs ++;
+
+	lcr3(PADDR(curenv->env_pgdir));
+	
+	unlock_kernel();
+
+	env_pop_tf(&curenv->env_tf);
+	// !! ----- Sths Code End ----- !!
+	
 	panic("env_run not yet implemented");
 }
 

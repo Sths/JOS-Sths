@@ -12,6 +12,12 @@
 static void cons_intr(int (*proc)(void));
 static void cons_putc(int c);
 
+// Sths code begin
+ extern int fgcolor;
+extern int bgcolor;
+// Sths code end
+
+
 // Stupid I/O delay routine necessitated by historical PC design flaws
 static void
 delay(void)
@@ -167,9 +173,15 @@ static void
 cga_putc(int c)
 {
 	// if no attribute given, then use black on white
-	if (!(c & ~0xFF))
-		c |= 0x0700;
+	// Sths code begin
 
+	c |= bgcolor << 12;
+	c |= fgcolor << 8;
+
+	// Sths code end
+
+
+	
 	switch (c & 0xff) {
 	case '\b':
 		if (crt_pos > 0) {

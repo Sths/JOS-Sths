@@ -28,8 +28,17 @@ set_pgfault_handler(void (*handler)(struct UTrapframe *utf))
 
 	if (_pgfault_handler == 0) {
 		// First time through!
+		
 		// LAB 4: Your code here.
-		panic("set_pgfault_handler not implemented");
+		r = sys_page_alloc (0, (void *)(UXSTACKTOP - PGSIZE), PTE_U | PTE_W | PTE_P);
+		if (r < 0) {
+			panic("sys_page_alloc error : %e\n", r);
+		}
+		// how to know envid , put 0, envid2env will help us to get curenv in syscall
+		r = sys_env_set_pgfault_upcall (0, _pgfault_upcall);
+		if (r < 0) {
+			panic(" sys_env_set_pgfault_upcall error : %e\n", r);
+		}
 	}
 
 	// Save handler pointer for assembly to call.
