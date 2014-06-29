@@ -131,15 +131,16 @@ trap_init_percpu(void)
 	// user space on that CPU.
 	//
 	// LAB 4: Your code here:
-	int cpu_id = thiscpu ->cpu_id;
-thiscpu ->cpu_ts.ts_esp0 = KSTACKTOP - cpu_id * (KSTKSIZE + KSTKGAP);
-thiscpu ->cpu_ts.ts_ss0 = GD_KD;
-gdt[( GD_TSS0 >> 3) + cpu_id] = SEG16(STS_T32A , (uint32_t) (&( thiscpu ->cpu_ts
-)),
-sizeof(struct Taskstate), 0);
-gdt[( GD_TSS0 >> 3) + cpu_id ]. sd_s = 0;
-ltr(GD_TSS0 + (cpu_id << 3));
-lidt (& idt_pd);
+
+	// !! ----- Sths Code Start ----- !! 
+	int cpu_id = thiscpu->cpu_id;
+	thiscpu->cpu_ts.ts_esp0 = KSTACKTOP - cpu_id * (KSTKSIZE + KSTKGAP);
+	thiscpu->cpu_ts.ts_ss0 = GD_KD;
+	gdt[(GD_TSS0 >> 3) + cpu_id] = SEG16(STS_T32A, (uint32_t) (&( thiscpu->cpu_ts)), sizeof(struct Taskstate), 0);
+	gdt[(GD_TSS0 >> 3) + cpu_id].sd_s = 0;
+	ltr(GD_TSS0 + (cpu_id << 3));
+	lidt (& idt_pd);
+	// !! ----- Sths Code End ----- !!
 
 /*
 	// Setup a TSS so that we get the right stack

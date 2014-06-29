@@ -293,14 +293,17 @@ mem_init_mp(void)
 	//     Permissions: kernel RW, user NONE
 	//
 	// LAB 4: Your code here:
-int cpu_id;
-for (cpu_id = 0; cpu_id < NCPU; cpu_id ++) {
-boot_map_region(kern_pgdir ,
-KSTACKTOP - cpu_id * (KSTKSIZE + KSTKGAP) - KSTKSIZE ,
-KSTKSIZE ,
-PADDR(percpu_kstacks[cpu_id ]),
-PTE_W);
-}
+
+	// !! ----- Sths Code Start ----- !! 
+	int cpu_id;
+	for (cpu_id = 0; cpu_id < NCPU; cpu_id ++) {
+		boot_map_region(kern_pgdir,
+			KSTACKTOP - cpu_id * (KSTKSIZE + KSTKGAP) - KSTKSIZE,
+			KSTKSIZE, 
+			PADDR(percpu_kstacks[cpu_id]), 
+			PTE_W);
+	}
+	// !! ----- Sths Code End ----- !!
 }
 
 // --------------------------------------------------------------
@@ -616,10 +619,10 @@ mmio_map_region(physaddr_t pa, size_t size)
 	//
 	// Your code here:
 
-	pa = ROUNDDOWN(pa , PGSIZE);
-	boot_map_region(kern_pgdir , base , ROUNDUP(size , PGSIZE), pa , PTE_PCD | 	PTE_PWT | PTE_W);
+	pa = ROUNDDOWN(pa, PGSIZE);
+	boot_map_region(kern_pgdir, base, ROUNDUP(size, PGSIZE), pa, PTE_PCD | PTE_PWT | PTE_W);
 	uintptr_t tmp_base = base;
-	base += ROUNDUP(size , PGSIZE);
+	base += ROUNDUP(size, PGSIZE);
 	return (void *) tmp_base;
 	panic("mmio_map_region not implemented");
 }
