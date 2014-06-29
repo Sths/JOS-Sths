@@ -25,13 +25,12 @@ pgfault(struct UTrapframe *utf)
 	//   (see <inc/memlayout.h>).
 
 	// LAB 4: Your code here.
-if ((err & FEC_WR) == 0)
-panic("pgfault , the fault is not a write\n");
-uint32_t uaddr = (uint32_t) addr;
-if (( uvpd[PDX(addr)] & PTE_P) == 0 || (uvpt[uaddr / PGSIZE] & PTE_COW) == 0)
-{
-	panic("pgfault , not a copy -on -write page\n");
-}
+	if ((err & FEC_WR) == 0) panic("pgfault , the fault is not a write\n");
+	uint32_t uaddr = (uint32_t) addr;
+	if ((uvpd[PDX(addr)] & PTE_P) == 0 || (uvpt[uaddr / PGSIZE] & PTE_COW) == 0) {
+		panic("pgfault, not a copy-on-write page\n");
+	}
+
 	// Allocate a new page, map it at a temporary location (PFTEMP),
 	// copy the data from the old page to the new page, then move the new
 	// page to the old page's address.
@@ -41,15 +40,15 @@ if (( uvpd[PDX(addr)] & PTE_P) == 0 || (uvpt[uaddr / PGSIZE] & PTE_COW) == 0)
 
 	// LAB 4: Your code here.
 	// static int sys_page_alloc ( envid_t envid , void *va , int perm)
-r = sys_page_alloc (0, (void *)PFTEMP , PTE_W | PTE_U | PTE_P);
-if (r < 0) panic("pgfault , sys_page_alloc error : %e\n", r);
-// Oh my god , I forget this at the first , it waste me a lot of time to debug !!!
-addr = ROUNDDOWN(addr , PGSIZE);
-memcpy(PFTEMP , addr , PGSIZE);
-r = sys_page_map (0, PFTEMP , 0, addr , PTE_W | PTE_U | PTE_P);
-if (r < 0) panic("pgfault , sys_page_map error : %e\n", r);
-return;
-	panic("pgfault not implemented");
+	r = sys_page_alloc(0, (void *)PFTEMP, PTE_W | PTE_U | PTE_P);
+	if (r < 0) panic("pgfault, sys_page_alloc error : %e\n", r);
+
+	addr = ROUNDDOWN(addr, PGSIZE);
+	memcpy(PFTEMP, addr, PGSIZE);
+	r = sys_page_map(0, PFTEMP, 0, addr, PTE_W | PTE_U | PTE_P);
+	if (r < 0) panic("pgfault , sys_page_map error : %e\n", r);
+
+	return;
 }
 
 //
@@ -75,19 +74,18 @@ duppage(envid_t envid, unsigned pn)
 
 	void * addr = (void *)(pn * PGSIZE);
 	if (( uvpt[pn] & PTE_W) || (uvpt[pn] & PTE_COW)) {
-		// cow
-		r = sys_page_map (0, addr , envid , addr , PTE_COW | PTE_P | PTE_U);
+		// copy on write
+		r = sys_page_map(0, addr , envid , addr , PTE_COW | PTE_P | PTE_U);
 		if (r < 0) panic("duppage sys_page_map error : %e\n", r);
-		r = sys_page_map (0, addr , 0, addr , PTE_COW | PTE_P | PTE_U);
+		r = sys_page_map(0, addr , 0, addr , PTE_COW | PTE_P | PTE_U);
 		if (r < 0) panic("duppage sys_page_map error : %e\n", r);
 	} else {
 		// read only
-		r = sys_page_map (0, addr , envid , addr , PTE_P | PTE_U);
+		r = sys_page_map(0, addr , envid , addr , PTE_P | PTE_U);
 		if (r < 0) panic("duppage sys_page_map error : %e\n", r);
 	}
 
 	return 0;
-	//panic("duppage not implemented");
 }
 
 //
@@ -111,36 +109,31 @@ fork(void)
 {
 	// LAB 4: Your code here.
 	set_pgfault_handler (pgfault);
-	int childpid = sys_exofork ();
+	int childpid = sys_exofork();
 	if (childpid < 0) {
 		panic("fork sys_exofork error : %e\n", childpid);
 	}
 	int r;
 	if (childpid == 0) {
-		// child process
-		// Remember to fix " thisenv " in the child process . ???
 		thisenv = &envs[ENVX(sys_getenvid ())];
-		// cprintf (" fork child ok\n");
 		return 0;
 	} else {
-		// map page to new environment
-		// kernel page is already in new environment
 		uint32_t i;
 		for (i = 0; i != UTOP; i += PGSIZE)
 		if (( uvpd[PDX(i)] & PTE_P) && (uvpt[i / PGSIZE] & PTE_P) && (uvpt[i / PGSIZE] & PTE_U)) {
 			duppage(childpid , i / PGSIZE);
 		}
-		// allocate exception stack
+
 		r = sys_page_alloc(childpid , (void *)(UXSTACKTOP - PGSIZE), PTE_U | PTE_W | PTE_P);
 		if (r < 0) panic("fork , sys_page_alloc user exception stack error : %e\n", r);
-		// set user environment user page fault handler
+
 		extern void _pgfault_upcall(void);
 		r = sys_env_set_pgfault_upcall (childpid , _pgfault_upcall);
 		if (r < 0) panic("fork , set pgfault upcall fail : %e\n", r);
-		// mark the child as runnable and return
+
 		r = sys_env_set_status (childpid , ENV_RUNNABLE);
 		if (r < 0) panic("fork , set child process to ENV_RUNNABLE error : %e\n", r);
-		// cprintf (" fork father ok !");
+
 		return childpid;
 	}
 	panic("fork not implemented");

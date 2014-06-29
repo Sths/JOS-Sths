@@ -383,32 +383,31 @@ page_fault_handler(struct Trapframe *tf)
 
 	// LAB 4: Your code here.
 
-	if (curenv -> env_pgfault_upcall != NULL) {
+	// !! ----- Sths Code Start ----- !! 
+	if (curenv->env_pgfault_upcall != NULL) {
 		// exist env 's page fault upcall
 		struct UTrapframe * ut;
-		if (tf ->tf_esp >= UXSTACKTOP - PGSIZE && tf ->tf_esp <= UXSTACKTOP - 1) {
-			// already in user exception stack , should first push an empty 32- bit word
-			ut = (struct UTrapframe *)(( void *)tf ->tf_esp - sizeof(struct	UTrapframe) - 4);
-			user_mem_assert(curenv , (void *)ut , sizeof(struct UTrapframe) + 4, PTE_U | PTE_W);
+		if (tf->tf_esp >= UXSTACKTOP - PGSIZE && tf->tf_esp <= UXSTACKTOP - 1) {
+			ut = (struct UTrapframe *)((void *)tf->tf_esp - sizeof(struct UTrapframe) - 4);
+			user_mem_assert(curenv, (void *)ut, sizeof(struct UTrapframe) + 4, PTE_U | PTE_W);
 		} else {
-			// it 's the first time in user exception stack
 			ut = (struct UTrapframe *)(UXSTACKTOP - sizeof(struct UTrapframe));
-			user_mem_assert(curenv , (void *)ut , sizeof(struct UTrapframe), PTE_U | PTE_W);
+			user_mem_assert(curenv, (void *)ut, sizeof(struct UTrapframe), PTE_U | PTE_W);
 		}
-		ut ->utf_esp = tf ->tf_esp;
-		ut ->utf_eflags = tf ->tf_eflags;
-		ut ->utf_eip = tf ->tf_eip;
-		ut ->utf_regs = tf ->tf_regs;
-		ut ->utf_err = tf ->tf_err;
-		ut ->utf_fault_va = fault_va;
-		curenv ->env_tf.tf_eip = (uint32_t)curenv -> env_pgfault_upcall ;
-		curenv ->env_tf.tf_esp = (uint32_t)ut;
+		ut->utf_esp = tf->tf_esp;
+		ut->utf_eflags = tf->tf_eflags;
+		ut->utf_eip = tf->tf_eip;
+		ut->utf_regs = tf->tf_regs;
+		ut->utf_err = tf->tf_err;
+		ut->utf_fault_va = fault_va;
+		curenv->env_tf.tf_eip = (uint32_t)curenv->env_pgfault_upcall;
+		curenv->env_tf.tf_esp = (uint32_t)ut;
 		env_run(curenv);
 	}
+	// !! ----- Sths Code End ----- !!
 
 	// Destroy the environment that caused the fault.
-	cprintf("[%08x] user fault va %08x ip %08x\n",
-		curenv->env_id, fault_va, tf->tf_eip);
+	cprintf("[%08x] user fault va %08x ip %08x\n", curenv->env_id, fault_va, tf->tf_eip);
 	print_trapframe(tf);
 	env_destroy(curenv);
 }

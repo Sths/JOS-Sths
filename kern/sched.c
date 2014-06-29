@@ -29,21 +29,45 @@ sched_yield(void)
 	// below to halt the cpu.
 
 	// LAB 4: Your code here.
-	int now_env , i;
-if (curenv) {
-// thiscpu -> cpu_env
-now_env = (ENVX(curenv ->env_id) + 1) % NENV;
-} else {
-now_env = 0;
-}
-for (i = 0; i < NENV; i++, now_env = (now_env + 1) % NENV) {
-if (envs[now_env ]. env_status == ENV_RUNNABLE) {
-env_run (& envs[now_env ]);
-}
-}
-if (curenv && curenv ->env_status == ENV_RUNNING) {
-env_run(curenv);
-}
+
+	int now_env, i;
+	if (curenv) {
+		// thiscpu -> cpu_env
+		now_env = (ENVX(curenv->env_id) + 1) % NENV;
+	} else {
+		now_env = 0;
+	}
+	uint32_t max_priority = 0;
+	int select_env = -1;
+	for (i = 0; i < NENV; i++, now_env = (now_env + 1) % NENV) {
+		if (envs[now_env].env_status == ENV_RUNNABLE && (envs[now_env].env_priority > max_priority || select_env == -1)) {
+			select_env = now_env;
+			max_priority = envs[now_env]. env_priority;
+		}
+	}
+	if (select_env >= 0 && (!curenv || curenv->env_status != ENV_RUNNING ||
+		max_priority >= curenv->env_priority)) {
+		env_run (&envs[select_env]);
+	}
+	if (curenv && curenv->env_status == ENV_RUNNING) {
+		env_run(curenv);
+	}
+	/*
+	int now_env, i;
+	if (curenv) {
+		// thiscpu -> cpu_env
+			now_env = (ENVX(curenv->env_id) + 1) % NENV;
+		} else {
+			now_env = 0;
+		}
+	for (i = 0; i < NENV; i++, now_env = (now_env + 1) % NENV) {
+		if (envs[now_env ].env_status == ENV_RUNNABLE) {
+			env_run (&envs[now_env ]);
+		}
+	}
+	if (curenv && curenv->env_status == ENV_RUNNING) {
+		env_run(curenv);
+	}*/
 	// sched_halt never returns
 	sched_halt();
 }
