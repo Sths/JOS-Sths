@@ -10,6 +10,7 @@ void childofspawn(void);
 void
 umain(int argc, char **argv)
 {
+	cprintf("!!!");
 	int r;
 
 	if (argc != 0)

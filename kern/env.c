@@ -416,11 +416,12 @@ env_create(uint8_t *binary, size_t size, enum EnvType type)
 	if (tmp < 0) panic("env_create: cannot allocate environment.\n");
 	load_icode(e, binary, size);
 	e->env_type = type;
-	return;
 	// !! ----- Sths Code End ----- !!
 
 	// If this is the file server (type == ENV_TYPE_FS) give it I/O privileges.
 	// LAB 5: Your code here.
+	if (type == ENV_TYPE_FS) e->env_tf.tf_eflags |= FL_IOPL_3;
+	return;
 }
 
 //
